@@ -5,7 +5,6 @@ from flask import request
 
 # sets up the connection to a database where IP address and user information are stored
 def getConnection():
-    global _connection
     try:
         _connection = psycopg2.connect(f"dbname = {dbname} user = {username} password = {password}")
         return _connection
