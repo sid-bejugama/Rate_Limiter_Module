@@ -23,6 +23,7 @@ def _addIPAddress(IPAddress, cur):
 
     #This caused a problem because a new IP address initialized with a userID would then prevent a new user from being added into the user table as it would not enter the code block starting on line 122
 
+    # sets default values of 10 and 50 for the interval and limit, respectively
     postgreSQL_insert_Query = f"""INSERT INTO "{IP_table}" ("{IP_addresses}", "{IP_requests}", "{IP_start_requests}", "{IP_interval}", "{IP_limit}") VALUES ('{IPAddress}', '{0}', '{datetime.now()}', '{10}', '{50}')"""
         
     cur.execute(postgreSQL_insert_Query)
@@ -34,7 +35,8 @@ def _addUser(userID, IPAddress, IP_info, cur):
     
     cur.execute(postgreSQL_update_query)
 
-    postgreSQL_insert_Query = f""" INSERT INTO "{userID_table}" ("{userIDs}", "{user_requests}", "{user_start_requests}", "{user_limit}", "{user_interval}") VALUES ('{userID}', '{1}', '{datetime.now()}', '{20}', '{10}')"""
+    # sets default values of 20, 10 for the limit and interval, respectively
+    postgreSQL_insert_Query = f""" INSERT INTO "{userID_table}" ("{userIDs}", "{user_requests}", "{user_start_requests}", "{user_limit}", "{user_interval}") VALUES ('{userID}', '{0}', '{datetime.now()}', '{20}', '{10}')"""
 
     cur.execute(postgreSQL_insert_Query)
 
