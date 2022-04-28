@@ -48,4 +48,4 @@ if __name__ == '__main__':
     # on the local development server.
     conn = getConnection()
     cur = conn.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
-    app.run(port=5000)
+    app.run()
