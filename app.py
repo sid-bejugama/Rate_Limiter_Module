@@ -2,7 +2,7 @@ from flask import Flask, redirect, url_for, request
 from rateLimiter import *
 import psycopg2
 import psycopg2.extras
-  
+
 app = Flask(__name__)
 
 @app.route('/useapi/')
@@ -37,15 +37,10 @@ def success():
     userId = request.args.get("userID", None)
     returnVal = f'Your IPAddress is: {ip}.'
     if userId: return returnVal + f' Your userID is {userId}'
-    else:
-        return returnVal + f' You are not logged in.'
+    else: return returnVal + f' You are not logged in.'
 
   
-# main driver function
 if __name__ == '__main__':
-  
-    # run() method of Flask class runs the application 
-    # on the local development server.
     conn = getConnection()
     cur = conn.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
     app.run()

@@ -82,25 +82,29 @@ def track_api_usage(IPAddress, cur, _connection, userID):
     if curr_IP_interval <= limit_interval and IP_info[0][f"{IP_requests}"] >= IP_request_limit:
         return False
     # reset the starting time for requests for the given IP address and reset the current number of requests in the interval if time interval exceeded
+    IPreset = False
     if curr_IP_interval > limit_interval:
+        IPreset = True
         postgreSQL_update_query = f"""Update "{IP_table}" set "{IP_start_requests}" = '{datetime.now()}', "{IP_requests}" = '{0}' where "{IP_addresses}" = '{IPAddress}'"""
         cur.execute(postgreSQL_update_query)
 
     
     # increment the number of requests
-    postgreSQL_select_Query = f"""SELECT * FROM "{IP_table}" WHERE "{IP_addresses}" = '{IPAddress}'"""
-    cur.execute(postgreSQL_select_Query)
-    IP_info = cur.fetchall()
+    if IPreset:
+        postgreSQL_select_Query = f"""SELECT * FROM "{IP_table}" WHERE "{IP_addresses}" = '{IPAddress}'"""
+        cur.execute(postgreSQL_select_Query)
+        IP_info = cur.fetchall()
     
     postgreSQL_update_query = f"""Update "{IP_table}" set "{IP_requests}" = '{IP_info[0][f"{IP_requests}"] + 1}' where "{IP_addresses}" = '{IPAddress}'""" 
     cur.execute(postgreSQL_update_query)
 
     # protocol if optional userID is passed in
     if userID:
-        # protocol for if the userID is already registered for the given IP address
+        # protocol for if there are no users associated with the given IP address yet
         if not IP_info[0][f"{IP_users}"]:
             IP_info[0][f"{IP_users}"] = []
             _addUser(userID, IPAddress, IP_info, cur)
+        # protocol for if the userID is already registered for the given IP address
         if userID in IP_info[0][f"{IP_users}"]:
                 # get user-specific information
                 postgreSQL_select_Query = f"""select * from "{userID_table}" where "{userIDs}" = '{userID}'"""
@@ -112,16 +116,19 @@ def track_api_usage(IPAddress, cur, _connection, userID):
                 if curr_user_interval <= limit_interval and user_info[0][f"{user_requests}"] >= user_request_limit:
                     return False
                 
-                 # reset the starting time for requests for the given userID and reset the current number of requests in the interval if time interval exceeded
+                # reset the starting time for requests for the given userID and reset the current number of requests in the interval if time interval exceeded
+                userReset = False
                 if curr_user_interval > limit_interval:
+                    userReset = True
                     postgreSQL_update_query = f"""Update "{userID_table}" set "{user_start_requests}" = '{datetime.now()}', "{user_requests}" = '{0}' where "{userIDs}" = '{userID}'"""
 
                     cur.execute(postgreSQL_update_query)
                 
                 # increment the number of requests for the user 
-                postgreSQL_select_Query = f"""select * from "{userID_table}" where "{userIDs}" = '{userID}'"""
-                cur.execute(postgreSQL_select_Query)
-                user_info = cur.fetchall()
+                if userReset:
+                    postgreSQL_select_Query = f"""select * from "{userID_table}" where "{userIDs}" = '{userID}'"""
+                    cur.execute(postgreSQL_select_Query)
+                    user_info = cur.fetchall()
 
                 postgreSQL_update_query = f"""Update "{userID_table}" set "{user_requests}" = '{user_info[0][f"{user_requests}"] + 1}' where "{userIDs}" = '{userID}'"""
                 cur.execute(postgreSQL_update_query)
@@ -129,7 +136,7 @@ def track_api_usage(IPAddress, cur, _connection, userID):
             # if the given user is not found in the list of users, create a new user
             _addUser(userID, IPAddress, IP_info, cur)
     
-    # commit all changes in the database and close connection
+    # commit all changes in the database
     _connection.commit()
     
     # signal that the api can be used
