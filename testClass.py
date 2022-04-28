@@ -1,6 +1,6 @@
 from werkzeug.wrappers import Request, Response, ResponseStream
 from rateLimiter import *
-class RateLimitMiddleWare:
+class RateLimitMiddleWare():
     def __init__(self, app, conn, cur):
         self.app = app
         self.conn = conn

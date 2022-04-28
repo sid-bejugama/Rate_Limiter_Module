@@ -1,4 +1,3 @@
-import json
 from flask import Flask, redirect, url_for, request
 from rateLimiter import *
 import psycopg2
@@ -17,8 +16,6 @@ def useAPI():
     APILimit = track_api_usage(ip_address, cur, conn, user_id)
 
     if APILimit: return redirect(url_for('success', IPAddress=ip_address, userID=user_id))
-
-    # /success/fjkdsfjkl/isjflkjfk
 
     else: return redirect(url_for('error'))
 
@@ -41,7 +38,7 @@ def success():
     returnVal = f'Your IPAddress is: {ip}.'
     if userId: return returnVal + f' Your userID is {userId}'
     else:
-        return returnVal + f' You do not have a userID.'
+        return returnVal + f' You are not logged in.'
 
   
 # main driver function
