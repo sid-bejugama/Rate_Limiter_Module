@@ -24,3 +24,7 @@ userIDs = "userID"
 user_requests = "requests"
 # column name of start time of current interval of requests in userID table
 user_start_requests = "start_time"
+
+user_interval = "interval"
+
+user_limit = "limit"

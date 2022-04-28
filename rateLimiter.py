@@ -1,9 +1,8 @@
 import psycopg2
-from secrets import dbname, username, password, IP_table, userID_table, IP_addresses, IP_requests, IP_start_requests, IP_users, userIDs, user_requests, user_start_requests
+from secrets import dbname, username, password, IP_table, userID_table, IP_addresses, IP_requests, IP_start_requests, IP_users, userIDs, user_requests, user_start_requests, user_interval, user_limit
 from datetime import datetime
 from flask import request
 
-_connection = None
 
 # number of requests per IP address in a given time interval
 IP_request_limit = 50 
@@ -11,23 +10,36 @@ IP_request_limit = 50
 # number of requests per user in a given time interval
 user_request_limit = 20
 
-# time interval in which current number of requests are tracked
-limit_interval = 10
+# time interval in which current number of requests are tracked for an ip address
+ip_limit_interval = 10
+
+# time interval in which current number of requests are tracked for a user
+user_limit_interval = 10
 
 # provides the ability to adjust the number of requests allotted per IP address in a given interval of time
 def set_IP_request_limit(limit):
     global IP_request_limit
     IP_request_limit = limit
 
-# provides the ability to adjust the number of requests allotted per user in a given interval of time
-def set_user_request_limit(limit):
+# provides the ability to adjust the number of requests allotted for a given user in a given interval of time
+def set_user_request_limit(userID, cur):
     global user_request_limit
-    user_request_limit = limit
+    postgreSQL_select_Query = f"""select * from "{userID_table}" where "{userIDs}" = '{userID}'"""
+    cur.execute(postgreSQL_select_Query)
+    user_info = cur.fetchall()
+    # in case the user is not in the database yet
+    if user_info == []: print("User not initialized yet")
+    else: user_request_limit = user_info[0][f"{user_limit}"]
 
-# provides the ability to adjust the interval of time in which current requests are tracked
-def set_limit_interval(interval):
-    global limit_interval
-    limit_interval = interval
+# provides the ability to adjust the interval of time in which current requests are tracked for a given user
+def set_user_limit_interval(userID, cur):
+    global user_limit_interval
+    postgreSQL_select_Query = f"""select * from "{userID_table}" where "{userIDs}" = '{userID}'"""
+    cur.execute(postgreSQL_select_Query)
+    user_info = cur.fetchall()
+    # in case the user is not in the database yet
+    if user_info == []: print("User not initialized yet")
+    else: user_limit_interval = user_info[0][f"{user_interval}"]
 
 
 # sets up the connection to a database where IP address and user information are stored
@@ -41,15 +53,18 @@ def getConnection():
  
 
 # adds a new IP address to the database
-def _addIPAddress(IPAddress, cur, userID = None):
-    if userID:
-        postgreSQL_insert_Query = f"""INSERT INTO "{IP_table}" ("{IP_addresses}", "{IP_requests}", "{IP_start_requests}", "{IP_users}") VALUES ('{IPAddress}', '{0}', '{datetime.now()}', ARRAY{[userID]})"""
+
+# changed this so that the IP address is not initialized with a user regardless of whether the user is logged in. The user is added later when creating a new user.
+def _addIPAddress(IPAddress, cur):
+    # before, the code looked like this:
+
+    #postgreSQL_insert_Query = f"""INSERT INTO "{IP_table}" ("{IP_addresses}", "{IP_requests}", "{IP_start_requests}", "{IP_users}") VALUES ('{IPAddress}', '{0}', '{datetime.now()}', "{userID}")"""
+
+    #This caused a problem because a new IP address initialized with a userID would then prevent a new user from being added into the user table as it would not enter the code block starting on line 122
+
+    postgreSQL_insert_Query = f"""INSERT INTO "{IP_table}" ("{IP_addresses}", "{IP_requests}", "{IP_start_requests}") VALUES ('{IPAddress}', '{0}', '{datetime.now()}')"""
         
-        cur.execute(postgreSQL_insert_Query)
-    else:
-        postgreSQL_insert_Query = f"""INSERT INTO "{IP_table}" ("{IP_addresses}", "{IP_requests}", "{IP_start_requests}") VALUES ('{IPAddress}', '{0}', '{datetime.now()}')"""
-        
-        cur.execute(postgreSQL_insert_Query)
+    cur.execute(postgreSQL_insert_Query)
 
 # adds a new user to the database and updates the users associated with a given IP address
 def _addUser(userID, IPAddress, IP_info, cur):
@@ -58,7 +73,8 @@ def _addUser(userID, IPAddress, IP_info, cur):
     
     cur.execute(postgreSQL_update_query)
 
-    postgreSQL_insert_Query = f""" INSERT INTO "{userID_table}" ("{userIDs}", "{user_requests}", "{user_start_requests}") VALUES ('{userID}', '{1}', '{datetime.now()}')"""
+    postgreSQL_insert_Query = f""" INSERT INTO "{userID_table}" ("{userIDs}", "{user_requests}", "{user_start_requests}", "{user_limit}", "{user_interval}") VALUES ('{userID}', '{1}', '{datetime.now()}', '{user_request_limit}', '{user_limit_interval}')"""
+
     cur.execute(postgreSQL_insert_Query)
 
 # monitors the api usage for a given IP address and userID. Returns True if a given IP address and/or userID is allowed to use the api in the current time interval and returns False otherwise based on the parameters set
@@ -71,7 +87,7 @@ def track_api_usage(IPAddress, cur, _connection, userID):
 
     # add a new IP address if given IP address was not found
     if len(IP_info) == 0: 
-        _addIPAddress(IPAddress, cur, userID)
+        _addIPAddress(IPAddress, cur)
         postgreSQL_select_Query = f"""SELECT * FROM "{IP_table}" WHERE "{IP_addresses}" = '{IPAddress}'"""
         cur.execute(postgreSQL_select_Query)
         IP_info = cur.fetchall()
@@ -79,11 +95,11 @@ def track_api_usage(IPAddress, cur, _connection, userID):
     # check whether the rate limit was exceeded
     curr_datetime = datetime.now()
     curr_IP_interval = (curr_datetime - IP_info[0][f"{IP_start_requests}"]).total_seconds()
-    if curr_IP_interval <= limit_interval and IP_info[0][f"{IP_requests}"] >= IP_request_limit:
+    if curr_IP_interval <= ip_limit_interval and IP_info[0][f"{IP_requests}"] >= IP_request_limit:
         return False
     # reset the starting time for requests for the given IP address and reset the current number of requests in the interval if time interval exceeded
     IPreset = False
-    if curr_IP_interval > limit_interval:
+    if curr_IP_interval > ip_limit_interval:
         IPreset = True
         postgreSQL_update_query = f"""Update "{IP_table}" set "{IP_start_requests}" = '{datetime.now()}', "{IP_requests}" = '{0}' where "{IP_addresses}" = '{IPAddress}'"""
         cur.execute(postgreSQL_update_query)
@@ -101,6 +117,8 @@ def track_api_usage(IPAddress, cur, _connection, userID):
     # protocol if optional userID is passed in
     if userID:
         # protocol for if there are no users associated with the given IP address yet
+
+        # this is where the problem arose because the new IP address would be initialized with a userID if a user is logged in the first time an IP address is used to make a request
         if not IP_info[0][f"{IP_users}"]:
             IP_info[0][f"{IP_users}"] = []
             _addUser(userID, IPAddress, IP_info, cur)
@@ -108,17 +126,19 @@ def track_api_usage(IPAddress, cur, _connection, userID):
         if userID in IP_info[0][f"{IP_users}"]:
                 # get user-specific information
                 postgreSQL_select_Query = f"""select * from "{userID_table}" where "{userIDs}" = '{userID}'"""
+                print(postgreSQL_select_Query, "!!")
                 cur.execute(postgreSQL_select_Query)
                 user_info = cur.fetchall()
 
+
                 # check whether the user has exceeded the user-specific rate limit
                 curr_user_interval = (curr_datetime - user_info[0][f"{user_start_requests}"]).total_seconds()
-                if curr_user_interval <= limit_interval and user_info[0][f"{user_requests}"] >= user_request_limit:
+                if curr_user_interval <= user_limit_interval and user_info[0][f"{user_requests}"] >= user_request_limit:
                     return False
                 
                 # reset the starting time for requests for the given userID and reset the current number of requests in the interval if time interval exceeded
                 userReset = False
-                if curr_user_interval > limit_interval:
+                if curr_user_interval > user_limit_interval:
                     userReset = True
                     postgreSQL_update_query = f"""Update "{userID_table}" set "{user_start_requests}" = '{datetime.now()}', "{user_requests}" = '{0}' where "{userIDs}" = '{userID}'"""
 
