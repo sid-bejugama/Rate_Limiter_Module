@@ -17,6 +17,10 @@ IP_requests = "Requests"
 IP_start_requests = "Start_Time"
 # column name of list of users associated with given IP address
 IP_users = "userID"
+# column name of time interval for a given IP address
+IP_interval = "interval"
+# column name of limit on requests for a given IP address
+IP_limit = "limit"
 
 # column name of userIDs in userID table
 userIDs = "userID"
