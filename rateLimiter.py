@@ -126,13 +126,13 @@ def track_api_usage(IPAddress, cur, _connection, userID):
         if userID in IP_info[0][f"{IP_users}"]:
                 # get user-specific information
                 postgreSQL_select_Query = f"""select * from "{userID_table}" where "{userIDs}" = '{userID}'"""
-                print(postgreSQL_select_Query, "!!")
                 cur.execute(postgreSQL_select_Query)
                 user_info = cur.fetchall()
 
 
                 # check whether the user has exceeded the user-specific rate limit
                 curr_user_interval = (curr_datetime - user_info[0][f"{user_start_requests}"]).total_seconds()
+                print(user_limit_interval)
                 if curr_user_interval <= user_limit_interval and user_info[0][f"{user_requests}"] >= user_request_limit:
                     return False
                 

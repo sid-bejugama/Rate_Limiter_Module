@@ -14,6 +14,7 @@ def useAPI():
     user_id = request.args.get('userID', None)
     
     set_user_request_limit(user_id, cur)
+    set_user_limit_interval(user_id, cur)
     APILimit = track_api_usage(ip_address, cur, conn, user_id)
 
 
