@@ -1,5 +1,5 @@
 # name of example database
-dbname = "postgresql-globular-76627"
+dbname = "API_USERS"
 # username to access example database
 username = "postgres"
 # password to access example database
