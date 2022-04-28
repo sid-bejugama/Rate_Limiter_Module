@@ -2,6 +2,7 @@ from flask import Flask, redirect, url_for, request
 from rateLimiter import *
 import psycopg2
 import psycopg2.extras
+import os
   
 app = Flask(__name__)
 
@@ -48,4 +49,5 @@ if __name__ == '__main__':
     # on the local development server.
     conn = getConnection()
     cur = conn.cursor(cursor_factory = psycopg2.extras.RealDictCursor)
-    app.run()
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
